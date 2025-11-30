@@ -1,115 +1,173 @@
 "use client"
 
-import { useState } from "react"
-import PricePredictorForm from "@/components/price-predictor-form"
-import PredictionResults from "@/components/prediction-results"
-import Header from "@/components/header"
+import { useEffect, useRef, useState } from "react"
 
-// Cập nhật Interface dựa trên OpenAPI mới
-interface PredictionResponse {
-  success: boolean
-  info: {
-    input_district: string
-    recognized_district: string
-    distance_km: number
-  }
-  result: {
-    result: number
-    unit: string
+interface GoongMapProps {
+  highlightDistrict?: string
+  onMapReady?: () => void
+}
+
+declare global {
+  interface Window {
+    goongjs: any
   }
 }
 
-interface FormData {
-  area: number
-  bedroom: number
-  wc: number
-  district: string
-}
-
-export default function Home() {
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{
-    formData: FormData
-    apiResponse: PredictionResponse
-  } | null>(null)
+export default function GoongMap({ highlightDistrict, onMapReady }: GoongMapProps) {
+  const mapContainer = useRef<HTMLDivElement>(null)
+  const map = useRef<any>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handlePredict = async (formData: FormData) => {
-    setLoading(true)
-    setError(null)
-    setResult(null)
-
-    try {
-      console.log("Sending prediction request with:", formData)
-
-      // Lưu ý: Nếu URL API thay đổi, hãy cập nhật dòng bên dưới
-      const response = await fetch("https://pbl6-group-danang-house-price-predictor-neuralnet.hf.space/predict", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          area: formData.area,
-          bedroom: formData.bedroom,
-          wc: formData.wc,
-          district: formData.district,
-        }),
-      })
-
-      console.log("[v0] Response status:", response.status)
-
-      if (!response.ok) {
-        const errorData = await response.text()
-        console.log("[v0] Error response:", errorData)
-        throw new Error(`API error: ${response.status} - ${errorData}`)
-      }
-
-      const data: PredictionResponse = await response.json()
-      console.log("[v0] Prediction result:", data)
-      setResult({ formData, apiResponse: data })
-    } catch (err) {
-      console.log("[v0] Catch error:", err)
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to get prediction. Please check your inputs and try again."
-      setError(errorMessage)
-    } finally {
-      setLoading(false)
-    }
+  const districtCoordinates: Record<string, [number, number]> = {
+    "huyện hoà vang": [107.4543, 15.8342],
+    "hoà vang": [107.4543, 15.8342],
+    "quận cẩm lệ": [108.2033, 16.0679],
+    "cẩm lệ": [108.2033, 16.0679],
+    "quận hải châu": [108.2158, 16.0733],
+    "hải châu": [108.2158, 16.0733],
+    "quận liên chiểu": [108.1703, 16.0089],
+    "liên chiểu": [108.1703, 16.0089],
+    "quận ngũ hành sơn": [108.2517, 16.0278],
+    "ngũ hành sơn": [108.2517, 16.0278],
+    "quận sơn trà": [108.2764, 16.1122],
+    "sơn trà": [108.2764, 16.1122],
+    "quận thanh khê": [108.1897, 16.0558],
+    "thanh khê": [108.1897, 16.0558],
   }
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-background to-secondary/10">
-      <Header />
+  useEffect(() => {
+    const initMap = async () => {
+      if (map.current) return
+      if (!mapContainer.current) return
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">Property Details</h2>
-              <p className="text-muted-foreground">Enter your property information to get AI predictions</p>
-            </div>
-            <PricePredictorForm onPredict={handlePredict} loading={loading} />
-          </div>
+      try {
+        const tokenRes = await fetch("/api/goong-token")
+        const tokenData = await tokenRes.json()
+        const token = tokenData.token
 
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">Price Prediction</h2>
-              <p className="text-muted-foreground">AI Neural Network Estimation</p>
-            </div>
-            {error && (
-              <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-            {result && <PredictionResults result={result} />}
-            {!result && !error && (
-              <div className="bg-card border border-border rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Submit the form to see the estimated price</p>
-              </div>
-            )}
-          </div>
+        console.log("[v0] Token received:", token ? "✓" : "✗")
+        console.log("[v0] Token value check:", token || "TOKEN IS UNDEFINED")
+
+        if (!token) {
+          throw new Error("Token not configured. Please add GOONG_ACCESS_TOKEN to environment variables.")
+        }
+
+        // Load CSS and JS libraries if not already loaded
+        if (!window.goongjs) {
+          // Load CSS
+          const link = document.createElement("link")
+          link.href = "https://cdn.jsdelivr.net/npm/@goongmaps/goong-js@1.0.9/dist/goong-js.css"
+          link.rel = "stylesheet"
+          document.head.appendChild(link)
+
+          // Load JS
+          const script = document.createElement("script")
+          script.src = "https://cdn.jsdelivr.net/npm/@goongmaps/goong-js@1.0.9/dist/goong-js.js"
+          script.async = true
+          document.body.appendChild(script)
+
+          // Wait for goongjs to be available
+          await new Promise((resolve, reject) => {
+            const maxAttempts = 50
+            let attempts = 0
+            const checkInterval = setInterval(() => {
+              attempts++
+              if (window.goongjs && window.goongjs.Map) {
+                clearInterval(checkInterval)
+                resolve(true)
+              }
+              if (attempts >= maxAttempts) {
+                clearInterval(checkInterval)
+                reject(new Error("Goong Maps library failed to load"))
+              }
+            }, 100)
+          })
+        }
+
+        window.goongjs.accessToken = token
+        console.log("[v0] Token set on goongjs.accessToken")
+
+        // Create map instance
+        map.current = new window.goongjs.Map({
+          container: mapContainer.current,
+          style: "https://tiles.goong.io/assets/goong_map_web.json",
+          center: [108.2017, 16.0544],
+          zoom: 11,
+        })
+
+        // Handle map load event
+        map.current.on("load", () => {
+          console.log("[v0] Map loaded successfully")
+          setMapLoaded(true)
+          onMapReady?.()
+        })
+
+        // Handle map errors with better logging
+        map.current.on("error", (e: any) => {
+          console.error("[v0] Goong Maps error event:", e)
+          let errorMsg = "Unknown map error"
+          if (e?.error?.message) {
+            errorMsg = e.error.message
+          } else if (typeof e === "string") {
+            errorMsg = e
+          } else if (e?.message) {
+            errorMsg = e.message
+          }
+          console.error("[v0] Map error details:", errorMsg)
+          setError(`Map error: ${errorMsg}`)
+        })
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        console.error("[v0] Map initialization error:", errorMsg, err)
+        setError(errorMsg)
+      }
+    }
+
+    initMap()
+  }, [onMapReady])
+
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !highlightDistrict) return
+
+    const coords = districtCoordinates[highlightDistrict.toLowerCase()]
+    if (!coords) {
+      console.log("[v0] No coordinates for district:", highlightDistrict)
+      return
+    }
+
+    console.log("[v0] Highlighting district:", highlightDistrict, "at", coords)
+
+    map.current.flyTo({
+      center: coords,
+      zoom: 13,
+      duration: 1500,
+    })
+
+    // Add popup marker at district center
+    const popup = new window.goongjs.Popup({ offset: 25 }).setHTML(
+      `<div class="p-2 bg-white rounded">
+        <h3 class="font-semibold text-foreground">${highlightDistrict}</h3>
+        <p class="text-sm text-muted-foreground">Selected District</p>
+      </div>`,
+    )
+
+    new window.goongjs.Marker({ color: "#3b82f6" }).setLngLat(coords).setPopup(popup).addTo(map.current)
+  }, [highlightDistrict, mapLoaded])
+
+  if (error) {
+    return (
+      <div className="w-full h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <p className="text-red-600 font-semibold">Map Error</p>
+          <p className="text-gray-600 text-sm">{error}</p>
+          <p className="text-gray-500 text-xs mt-4">
+            Make sure GOONG_ACCESS_TOKEN is added to your environment variables in the Vars section.
+          </p>
         </div>
       </div>
-    </main>
-  )
+    )
+  }
+
+  return <div ref={mapContainer} className="w-full h-screen bg-gray-100" />
 }
