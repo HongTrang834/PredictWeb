@@ -5,23 +5,17 @@ import PricePredictorForm from "@/components/price-predictor-form"
 import PredictionResults from "@/components/prediction-results"
 import Header from "@/components/header"
 
+// Cập nhật Interface dựa trên OpenAPI mới
 interface PredictionResponse {
   success: boolean
-  debug: {
-    district_code_used: number
+  info: {
+    input_district: string
+    recognized_district: string
     distance_km: number
   }
   result: {
-    xgboost: number
-    deep_learning: number
+    result: number
     unit: string
-  }
-  inputs_processed?: {
-    area: number
-    bedroom: number
-    wc: number
-    district_input: string
-    district_recognized: string
   }
 }
 
@@ -48,7 +42,8 @@ export default function Home() {
     try {
       console.log("Sending prediction request with:", formData)
 
-      const response = await fetch("https://pbl6-group-danang-house-price-predictor.hf.space/predict", {
+      // Lưu ý: Nếu URL API thay đổi, hãy cập nhật dòng bên dưới
+      const response = await fetch("https://pbl6-group-danang-house-price-predictor-neuralnet.hf.space/predict", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -98,8 +93,8 @@ export default function Home() {
 
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">Price Predictions</h2>
-              <p className="text-muted-foreground">Compare XGBoost & Deep Learning models</p>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Price Prediction</h2>
+              <p className="text-muted-foreground">AI Neural Network Estimation</p>
             </div>
             {error && (
               <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
@@ -109,7 +104,7 @@ export default function Home() {
             {result && <PredictionResults result={result} />}
             {!result && !error && (
               <div className="bg-card border border-border rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Submit the form to see predictions</p>
+                <p className="text-muted-foreground">Submit the form to see the estimated price</p>
               </div>
             )}
           </div>
