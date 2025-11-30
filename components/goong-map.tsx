@@ -1,118 +1,172 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
-// Định nghĩa kiểu dữ liệu cho địa điểm (dựa trên dữ liệu dự án cũ của bạn)
-interface Place {
-    id: string | number
-    name: string
-    lat: number
-    lng: number
+interface GoongMapProps {
+    highlightDistrict?: string
+    onMapReady?: () => void
 }
 
-interface MapComponentProps {
-    placesData: Place[]
-    onMarkerClick?: (index: number) => void
+declare global {
+    interface Window {
+        goongjs: any
+    }
 }
 
-export default function MapComponent({ placesData, onMarkerClick }: MapComponentProps) {
-    const mapContainerRef = useRef<HTMLDivElement>(null)
-    const mapRef = useRef<any>(null)
-    const markersRef = useRef<any[]>([])
+// ✓ Hàm normalize bỏ dấu + lowercase
+function normalize(str: string) {
+    return str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "")
+        .toLowerCase()
+}
 
-    // Lấy Access Token từ biến môi trường
-    const accessToken = process.env.NEXT_PUBLIC_GOONG_MAP_KEY
+// ✓ Tọa độ các quận/huyện (KHÔNG DẤU)
+const districtCoordinates: Record<string, [number, number]> = {
+    "hoavang": [107.4543, 15.8342],
+    "huyenhoavang": [107.4543, 15.8342],
 
-    // 1. Khởi tạo bản đồ (Chỉ chạy 1 lần)
+    "camle": [108.2033, 16.0679],
+    "quancamle": [108.2033, 16.0679],
+
+    "haichau": [108.2158, 16.0733],
+    "quan haichau": [108.2158, 16.0733],
+    "quanhaichau": [108.2158, 16.0733],
+
+    "lienchieu": [108.1703, 16.0089],
+    "quanlienchieu": [108.1703, 16.0089],
+
+    "nguhanhson": [108.2517, 16.0278],
+    "quan nguhanhson": [108.2517, 16.0278],
+    "quannguhanhson": [108.2517, 16.0278],
+
+    "sontra": [108.2764, 16.1122],
+    "quansontra": [108.2764, 16.1122],
+
+    "thanhkhe": [108.1897, 16.0558],
+    "quanthanhkhe": [108.1897, 16.0558],
+}
+
+export default function GoongMap({ highlightDistrict, onMapReady }: GoongMapProps) {
+    const mapContainer = useRef<HTMLDivElement>(null)
+    const map = useRef<any>(null)
+    const markerRef = useRef<any>(null)
+
+    const [mapLoaded, setMapLoaded] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
     useEffect(() => {
-        if (mapRef.current) return
+        const initMap = async () => {
+            if (map.current || !mapContainer.current) return
 
-        // Hàm kiểm tra và load map
-        const initMap = () => {
-            // @ts-ignore - Vì load qua CDN nên TS không biết window.goongjs là gì
-            const goongjs = window.goongjs
+            try {
+                // Get token
+                const tokenRes = await fetch("/api/goong-token")
+                const tokenData = await tokenRes.json()
+                const token = tokenData.token
 
-            if (!goongjs) {
-                // Nếu chưa load xong script thì thử lại sau 100ms
-                setTimeout(initMap, 100)
-                return
+                if (!token) throw new Error("Missing GOONG_ACCESS_TOKEN")
+
+                // Load CSS
+                if (!document.getElementById("goong-css")) {
+                    const link = document.createElement("link")
+                    link.id = "goong-css"
+                    link.href =
+                        "https://cdn.jsdelivr.net/npm/@goongmaps/goong-js@1.0.9/dist/goong-js.css"
+                    link.rel = "stylesheet"
+                    document.head.appendChild(link)
+                }
+
+                // Load JS
+                if (!window.goongjs) {
+                    const script = document.createElement("script")
+                    script.src =
+                        "https://cdn.jsdelivr.net/npm/@goongmaps/goong-js@1.0.9/dist/goong-js.js"
+                    script.async = true
+                    document.body.appendChild(script)
+
+                    await new Promise((resolve, reject) => {
+                        const maxAttempts = 50
+                        let attempts = 0
+
+                        const check = setInterval(() => {
+                            attempts++
+                            if (window.goongjs?.Map) {
+                                clearInterval(check)
+                                resolve(true)
+                            }
+                            if (attempts >= maxAttempts) {
+                                clearInterval(check)
+                                reject("Failed to load Goong Maps JS")
+                            }
+                        }, 100)
+                    })
+                }
+
+                window.goongjs.accessToken = token
+
+                // Create Map
+                map.current = new window.goongjs.Map({
+                    container: mapContainer.current,
+                    style: "https://tiles.goong.io/assets/goong_map_web.json",
+                    center: [108.2017, 16.0544],
+                    zoom: 11,
+                })
+
+                map.current.on("load", () => {
+                    setMapLoaded(true)
+                    onMapReady?.()
+                })
+            } catch (err: any) {
+                setError(err.message || "Unknown error")
             }
-
-            goongjs.accessToken = accessToken
-
-            mapRef.current = new goongjs.Map({
-                container: mapContainerRef.current,
-                style: "https://tiles.goong.io/assets/goong_map_web.json",
-                center: [108.2208, 16.0471], // Trung tâm Đà Nẵng
-                zoom: 13,
-            })
-
-            // Thêm nút điều hướng zoom
-            mapRef.current.addControl(new goongjs.NavigationControl(), "top-right")
         }
 
         initMap()
+    }, [onMapReady])
 
-        // Cleanup khi component bị hủy
-        return () => {
-            if (mapRef.current) {
-                mapRef.current.remove()
-                mapRef.current = null
-            }
-        }
-    }, [accessToken])
-
-    // 2. Cập nhật Marker khi dữ liệu placesData thay đổi
+    // ✨ Highlight District — FIX HÒA VANG SAI MARKER
     useEffect(() => {
-        // Đợi map và thư viện load xong
-        // @ts-ignore
-        if (!mapRef.current || !window.goongjs) return
-        // @ts-ignore
-        const goongjs = window.goongjs
+        if (!map.current || !mapLoaded || !highlightDistrict) return
 
-        // Xóa marker cũ
-        markersRef.current.forEach((marker) => marker.remove())
-        markersRef.current = []
+        const key = normalize(highlightDistrict)
+        const coords = districtCoordinates[key]
 
-        if (!placesData || placesData.length === 0) return
+        if (!coords) {
+            console.log("❌ Không tìm thấy quận:", highlightDistrict, "→ normalized:", key)
+            return
+        }
 
-        // Tạo bounds để tự động zoom bản đồ chứa tất cả điểm
-        const bounds = new goongjs.LngLatBounds()
+        console.log("📌 Highlight:", highlightDistrict, "→", coords)
 
-        placesData.forEach((place, index) => {
-            // Tạo marker màu xanh (giống dự án tham khảo)
-            const marker = new goongjs.Marker({ color: "#007BFF" })
-                .setLngLat([place.lng, place.lat])
-                .addTo(mapRef.current)
 
-            // Thêm sự kiện click
-            const element = marker.getElement()
-            element.style.cursor = "pointer"
-            element.addEventListener("click", () => {
-                if (onMarkerClick) onMarkerClick(index)
-
-                // Hiệu ứng bay tới điểm đó khi click (tùy chọn)
-                mapRef.current.flyTo({
-                    center: [place.lng, place.lat],
-                    zoom: 15,
-                    speed: 1.2
-                })
-            })
-
-            markersRef.current.push(marker)
-            bounds.extend([place.lng, place.lat])
+        // Fly to district
+        map.current.flyTo({
+            center: coords,
+            zoom: 13,
+            duration: 1200,
         })
 
-        // Zoom bản đồ để thấy hết các marker
-        if (placesData.length > 0) {
-            mapRef.current.fitBounds(bounds, { padding: 50, maxZoom: 16 })
-        }
-    }, [placesData, onMarkerClick])
+        // Xóa marker cũ
+        if (markerRef.current) markerRef.current.remove()
 
-    return (
-        <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-border shadow-sm">
-            <div ref={mapContainerRef} className="w-full h-full" />
-            {/* Overlay loading nếu cần thiết */}
-        </div>
-    )
+        // Tạo marker mới (màu ĐỎ)
+        const newMarker = new window.goongjs.Marker({ color: "#ff0000" })
+            .setLngLat(coords)
+            .addTo(map.current)
+
+        markerRef.current = newMarker
+    }, [highlightDistrict, mapLoaded])
+
+    if (error) {
+        return (
+            <div className="w-full h-screen flex items-center justify-center bg-gray-100">
+                <p className="text-red-600">{error}</p>
+            </div>
+        )
+    }
+
+
+    return <div ref={mapContainer} className="w-full h-full" />
 }
