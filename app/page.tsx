@@ -72,88 +72,109 @@ export default function Home() {
       <div className="absolute inset-0">
         <GoongMap highlightDistrict={result?.formData.district} />
       </div>
-      
 
-      {/* ============================================================
-        PANEL TRÁI – CHUYỂN ĐỔI FORM <-> RESULT
-      ============================================================ */}
+      {/* PANEL MAIN (FORM / KẾT QUẢ) */}
       <div
         className="
           absolute top-8 left-8 
-          w-[420px]
-          bg-white/85 backdrop-blur-xl 
-          shadow-2xl border border-white/40 
-          rounded-2xl p-6
+          w-[440px]
+          bg-white/50 backdrop-blur-xl
+          shadow-[0_8px_30px_rgba(0,0,0,0.12)]
+          border border-white/40 
+          rounded-3xl p-7
           transition-all duration-300
         "
       >
-        {/* Nếu CHƯA predict → hiển thị FORM */}
+
+        {/* FORM */}
         {!result && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-gray-900">Property Details</h2>
-            <p className="text-sm text-gray-600 -mt-2">Fill information to get the AI prediction</p>
+          <div className="space-y-6 animate-[fadeIn_0.35s_ease-out]">
+
+            <div>
+              <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                Property Details
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Enter your property info to get AI-estimated market price
+              </p>
+            </div>
 
             <PricePredictorForm onPredict={handlePredict} loading={loading} />
 
             {error && (
-              <div className="bg-red-100 text-red-700 border border-red-300 p-3 rounded-lg mt-3">
+              <div className="bg-red-100 text-red-700 border border-red-300 p-4 rounded-xl">
                 {error}
               </div>
             )}
           </div>
         )}
 
-        {/* Nếu ĐÃ predict → hiển thị RESULT */}
+        {/* KẾT QUẢ */}
         {result && (
-          <div className="space-y-4 animate-[fadeIn_0.35s_ease-out]">
+          <div className="space-y-5 animate-[fadeIn_0.35s_ease-out]">
+
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">Predicted Price 🔥</h2>
+              <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                Predicted Price
+              </h2>
 
               {/* NÚT BACK */}
               <button
                 onClick={handleBack}
-                className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg"
+                className="
+                  px-4 py-2 
+                  text-sm font-medium
+                  bg-gray-800/90 text-white
+                  rounded-xl
+                  hover:bg-gray-900
+                  active:scale-95
+                  transition
+                "
               >
                 ← Back
               </button>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-xl shadow-lg">
+            {/* CARD KẾT QUẢ */}
+            <div className="
+              bg-gradient-to-br from-indigo-600 to-purple-700
+              text-white p-6 rounded-2xl shadow-2xl
+              flex flex-col gap-2
+            ">
               <PredictionResults result={result} />
             </div>
 
             <p className="text-gray-600 text-sm">
-              AI-based estimation using neural network model.
+              AI model predicted this value based on district, area & rooms.
             </p>
           </div>
         )}
       </div>
 
-      {/* ============================================================
-         PANEL YOUR INPUT (TRÊN PHẢI) – vẫn giữ nguyên
-      ============================================================ */}
+      {/* PANEL YOUR INPUT (PHẢI TRÊN) */}
       {result && (
         <div
           className="
             absolute top-8 right-8
-            w-[280px]
-            bg-white/80 backdrop-blur-xl
-            shadow-xl border border-white/40
-            rounded-2xl p-5
+            w-[300px]
+            bg-white/50 backdrop-blur-xl
+            shadow-[0_8px_30px_rgba(0,0,0,0.12)]
+            border border-white/40
+            rounded-3xl p-6
           "
         >
-          <h2 className="text-xl font-semibold text-gray-900 mb-3">Your Input</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-3">
+            Your Input
+          </h2>
 
-          <div className="space-y-1 text-gray-700 text-sm">
+          <div className="space-y-2 text-gray-800 text-sm">
             <p>📐 <b>Area:</b> {result.formData.area} m²</p>
             <p>🛏 <b>Bedrooms:</b> {result.formData.bedroom}</p>
             <p>🚿 <b>WC:</b> {result.formData.wc}</p>
             <p>📍 <b>District:</b> {result.formData.district}</p>
-            
           </div>
         </div>
       )}
-      
 
     </main>
   )

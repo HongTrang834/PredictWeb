@@ -24,7 +24,7 @@ export default function PricePredictorForm({ onPredict, loading }: PricePredicto
     area: 100,
     bedroom: 3,
     wc: 2,
-    district: "hải châu",
+    district: "Hòa Vang",
   })
 
   const districts = [

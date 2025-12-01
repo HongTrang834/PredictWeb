@@ -41,33 +41,7 @@ export default function PredictionResults({ result }: PredictionResultsProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Input Summary */}
-      <div className="bg-card border border-border rounded-lg p-4">
-        <h3 className="font-semibold text-foreground mb-3">Your Input Summary</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="text-sm">
-            <span className="text-muted-foreground">Area:</span>
-            <p className="font-medium text-foreground">{formData.area} m²</p>
-          </div>
-          <div className="text-sm">
-            <span className="text-muted-foreground">Bedrooms:</span>
-            <p className="font-medium text-foreground">{formData.bedroom}</p>
-          </div>
-          <div className="text-sm">
-            <span className="text-muted-foreground">Bathrooms:</span>
-            <p className="font-medium text-foreground">{formData.wc}</p>
-          </div>
-          <div className="text-sm">
-            <span className="text-muted-foreground">District:</span>
-            <p className="font-medium text-foreground">{recognized_district}</p>
-          </div>
-          <div className="col-span-2 text-sm">
-            <span className="text-muted-foreground">Distance from center:</span>
-            <p className="font-medium text-foreground">{distance_km.toFixed(2)} km</p>
-          </div>
-        </div>
-      </div>
+    <div>
 
       {/* Kết quả dự đoán duy nhất */}
       <div className="bg-card border-2 border-primary rounded-lg p-6 shadow-md transition-all hover:shadow-lg">
